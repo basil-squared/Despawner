@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 from itertools import cycle
-from utils import Utils
+from utils.utils import Utils
 
 class BotStatus(commands.Cog):
     def __init__(self, bot):

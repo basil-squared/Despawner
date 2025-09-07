@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import csv
 import json
 from datetime import datetime
-from utils import Utils
+from utils.utils import Utils
 from pathlib import Path
 
 load_dotenv()
