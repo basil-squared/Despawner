@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # Get directory of script
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$DIR"
+SCRIPT_DIR=$(dirname "$0")
+cd "$SCRIPT_DIR"
 
-# Activate poetry environment if it exists
-if command -v poetry &> /dev/null; then
+# Check for poetry
+if command -v poetry >/dev/null 2>&1; then
     echo "Activating poetry environment..."
-    eval "$(poetry env info --path)/bin/activate"
+    POETRY_PATH=$(poetry env info --path)
+    source "${POETRY_PATH}/bin/activate"
 fi
 
 # Start the bot with nohup
