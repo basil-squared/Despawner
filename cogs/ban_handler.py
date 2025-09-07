@@ -11,29 +11,31 @@ class BanHandler(commands.Cog):
         self.bot = bot
         self.config_manager = ConfigManager()
         self.logger = ActionLogger()
+        self.reload_banned_ids()
 
-    async def handle_ban_action(self, member, reason, guild_id, is_keyword=False):
-        config = self.config_manager.get_guild_config(guild_id)
-        behavior = config['keyword_ban_behavior'] if is_keyword else config['id_ban_behavior']
+    def reload_banned_ids(self):
+        """Reload the banned IDs set from CSV"""
+        self.banned_ids = set()
+        try:
+            with open("thelist.csv", 'r') as f:
+                for line in f:
+                    # Strip whitespace and get first column if comma-separated
+                    user_id = line.strip().split(',')[0]
+                    if user_id and user_id.isdigit():
+                        self.banned_ids.add(str(user_id))
+            print(f"Loaded {len(self.banned_ids)} banned IDs")
+        except Exception as e:
+            print(f"Error loading banned IDs: {e}")
 
-        if behavior == "auto":
-            await member.ban(reason=reason)
-            if config['dm_on_ban']:
-                # Your existing DM logic
-                pass
-            if config['log_bans']:
-                # Your existing logging logic
-                pass
-        elif behavior == "notify" and config['notify_staff']:
-            # Notify staff instead of banning
-            channel_id = Utils.load_channels(Utils).get(guild_id)
-            if channel_id:
-                channel = self.bot.get_channel(channel_id)
-                await channel.send(f"⚠️ Found match for {member.mention}: {reason}")
+    async def check_id_ban(self, member_id: str) -> bool:
+        """Check if a member ID is in the banned list"""
+        return str(member_id).strip() in self.banned_ids
 
-    @app_commands.command(name="firstrun", description="Bans all applicable users")
+    ban_group = app_commands.Group(name="ban", description="Ban related commands")
+
+    @ban_group.command(name="firstrun", description="Scan and ban all matching users")
     @app_commands.checks.has_permissions(ban_members=True)
-    async def firstrun(self, interaction: discord.Interaction):
+    async def ban_firstrun(self, interaction: discord.Interaction):
         try:
             await interaction.response.defer(ephemeral=True)
             guild = interaction.guild
@@ -103,6 +105,25 @@ class BanHandler(commands.Cog):
                 error_type=e.__class__.__name__,
                 show_help=True
             )
+
+    async def handle_ban_action(self, member, reason, guild_id, is_keyword=False):
+        config = self.config_manager.get_guild_config(guild_id)
+        behavior = config['keyword_ban_behavior'] if is_keyword else config['id_ban_behavior']
+
+        if behavior == "auto":
+            await member.ban(reason=reason)
+            if config['dm_on_ban']:
+                # Your existing DM logic
+                pass
+            if config['log_bans']:
+                # Your existing logging logic
+                pass
+        elif behavior == "notify" and config['notify_staff']:
+            # Notify staff instead of banning
+            channel_id = Utils.load_channels(Utils).get(guild_id)
+            if channel_id:
+                channel = self.bot.get_channel(channel_id)
+                await channel.send(f"⚠️ Found match for {member.mention}: {reason}")
 
     async def ban_with_appeal(self, member: discord.Member, reason: str, keyword: str = None, guild_id: str = None):
         """Ban a member and send them an appeal link if configured"""
@@ -208,24 +229,6 @@ class BanHandler(commands.Cog):
                     )
                     await channel.send(embed=embed)
 
-    @firstrun.error
-    async def firstrun_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        if isinstance(error, app_commands.MissingPermissions):
-            await ErrorHandler.send_error(
-                interaction,
-                "Permission Denied",
-                "You need Ban Members permission to use this command.",
-                error_type="MissingPermissions"
-            )
-        else:
-            await ErrorHandler.send_error(
-                interaction,
-                "Command Error",
-                str(error),
-                error_type=error.__class__.__name__,
-                show_help=True
-            )
-
     @commands.Cog.listener()
     async def on_member_join(self, member):
         guild_id = str(member.guild.id)
@@ -265,6 +268,37 @@ class BanHandler(commands.Cog):
                             f'{member.mention} has been banned for forbidden keyword "{keyword}"'
                         )
                     break
+
+    @ban_firstrun.error
+    async def ban_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.MissingPermissions):
+            await ErrorHandler.send_error(
+                interaction,
+                "Permission Denied",
+                "You need appropriate permissions to use this command.",
+                error_type="MissingPermissions"
+            )
+        else:
+            await ErrorHandler.send_error(
+                interaction,
+                "Command Error",
+                str(error),
+                error_type=error.__class__.__name__,
+                show_help=True
+            )
+
+    @ban_group.command(name="reload", description="Reload banned IDs from CSV")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def reload_bans(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        old_count = len(self.banned_ids)
+        self.reload_banned_ids()
+        new_count = len(self.banned_ids)
+        
+        await interaction.followup.send(
+            f"✅ Banned IDs reloaded\nPrevious entries: {old_count}\nNew entries: {new_count}",
+            ephemeral=True
+        )
 
 async def setup(bot):
     await bot.add_cog(BanHandler(bot))
