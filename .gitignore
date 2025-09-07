@@ -5,3 +5,5 @@ appeal_links.json
 ban_count.txt
 guild_configs.json
 logs/
+bot.pid
+bot.log
