@@ -3,7 +3,7 @@ name = "respawn"
 version = "0.1.0"
 description = "A bot intended to Squander the Spawners"
 authors = [
-    {name = "Echo Anon",email = "anon@anon.anon"}
+    {name = "Juniper _",email = "basil.squared1@gmail.com"}
 ]
 license = {text = "GPLv3"}
 readme = "README.md"

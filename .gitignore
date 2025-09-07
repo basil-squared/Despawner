@@ -1,3 +1,5 @@
 .env
 __pycache__/
 *.pyc
+appeal_links.json
+ban_count.txt
